@@ -1,0 +1,41 @@
+
+
+#BSUB -P cas_offind
+#BSUB -o cas_offinder_yli11_2021-03-09_bcafab447c0d/log_files/cas_%J_%I.out -e cas_offinder_yli11_2021-03-09_bcafab447c0d/log_files/cas_%J_%I.err
+#BSUB -n 2
+#BSUB -q standard
+#BSUB -R "span[hosts=1] rusage[mem=4000]"
+#BSUB -J "cas[1-1]"
+
+
+
+module purge
+
+id=$LSB_JOBINDEX
+COL1=`head -n $id /research/rgs01/home/clusterHome/yli11/HemTools/utils/../share/misc/sample.tsv|tail -n1|awk -F "	" '{print $1}'`
+COL2=`head -n $id /research/rgs01/home/clusterHome/yli11/HemTools/utils/../share/misc/sample.tsv|tail -n1|awk -F "	" '{print $2}'`
+COL3=`head -n $id /research/rgs01/home/clusterHome/yli11/HemTools/utils/../share/misc/sample.tsv|tail -n1|awk -F "	" '{print $3}'`
+COL4=`head -n $id /research/rgs01/home/clusterHome/yli11/HemTools/utils/../share/misc/sample.tsv|tail -n1|awk -F "	" '{print $4}'`
+COL5=`head -n $id /research/rgs01/home/clusterHome/yli11/HemTools/utils/../share/misc/sample.tsv|tail -n1|awk -F "	" '{print $5}'`
+COL6=`head -n $id /research/rgs01/home/clusterHome/yli11/HemTools/utils/../share/misc/sample.tsv|tail -n1|awk -F "	" '{print $6}'`
+COL7=`head -n $id /research/rgs01/home/clusterHome/yli11/HemTools/utils/../share/misc/sample.tsv|tail -n1|awk -F "	" '{print $7}'`
+COL8=`head -n $id /research/rgs01/home/clusterHome/yli11/HemTools/utils/../share/misc/sample.tsv|tail -n1|awk -F "	" '{print $8}'`
+COL9=`head -n $id /research/rgs01/home/clusterHome/yli11/HemTools/utils/../share/misc/sample.tsv|tail -n1|awk -F "	" '{print $9}'`
+LINE=`head -n $id /research/rgs01/home/clusterHome/yli11/HemTools/utils/../share/misc/sample.tsv|tail -n1`
+
+ncore=2
+mem=4000
+module load conda3
+source activate /home/yli11/.conda/envs/Cas_Offinder/
+cd cas_offinder_yli11_2021-03-09_bcafab447c0d
+cas-offinder input.list C matches.bed
+module load python/2.7.13
+python -c 'import pandas as pd;df = pd.read_csv("matches.bed",sep="\t",header=None);num = pd.DataFrame(df.groupby(0).size());num = num.sort_values(0,ascending=False);num.to_csv("number_matches.tsv",sep="\t",header=False)'
+cas_offinder_output_to_bed.py matches.bed 20 NGG
+sort -k1,1 -k2,2n matches.bed.bed > matches.bed.sorted
+rm matches.bed.bed
+mv matches.bed cas_offinder_output.tsv
+module load bedtools
+bedtools getfasta -fi /home/yli11/Data/Mouse/mm10/fasta/mm10.fa -bed matches.bed.sorted -fo test.bed -s -name -tab
+send_email_v1.py -a number_matches.tsv -m "cas-offinder Finished" -j cas_offinder_yli11_2021-03-09_bcafab447c0d --common
+
